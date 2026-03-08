@@ -37,7 +37,9 @@ body {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -433,7 +435,9 @@ button {
 }
 
 .search-frame input,
-.field-shell input {
+.field-shell input,
+.field-shell select,
+.field-shell textarea {
   width: 100%;
   border: 0;
   background: transparent;
@@ -442,7 +446,8 @@ button {
 }
 
 .search-frame input::placeholder,
-.field-shell input::placeholder {
+.field-shell input::placeholder,
+.field-shell textarea::placeholder {
   color: var(--ink-faint);
 }
 
@@ -481,6 +486,12 @@ button {
 .station-card h4 {
   font-size: 2rem;
   line-height: 0.95;
+}
+
+.station-area {
+  margin: 0.35rem 0 0;
+  color: var(--ink-faint);
+  font-size: 0.92rem;
 }
 
 .status-seal {
@@ -569,6 +580,13 @@ button {
   font-size: 0.74rem;
 }
 
+.station-selected {
+  border-color: rgba(47, 109, 104, 0.3);
+  box-shadow:
+    var(--shadow),
+    0 0 0 2px rgba(47, 109, 104, 0.12);
+}
+
 .station-foot button,
 .incident-actions button {
   display: inline-flex;
@@ -591,6 +609,178 @@ button {
 
 .map-ledger {
   margin-top: 1rem;
+}
+
+.station-ledger-panel {
+  margin-top: 1rem;
+  padding: 1.2rem;
+  border: 1px solid var(--paper-line);
+  border-radius: 1.5rem;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.station-ledger-topline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  color: var(--ink-faint);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.station-ledger-copy {
+  margin: 0.9rem 0 0;
+  color: var(--ink-soft);
+  font-size: 1.08rem;
+  line-height: 1.3;
+}
+
+.ledger-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.ledger-subpanel,
+.report-form {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(75, 59, 40, 0.16);
+  border-radius: 1.15rem;
+  background: rgba(255, 250, 241, 0.68);
+}
+
+.ledger-report-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ledger-report-card {
+  padding: 0.9rem;
+  border: 1px dashed rgba(75, 59, 40, 0.2);
+  border-radius: 1rem;
+  background: rgba(255, 251, 244, 0.76);
+}
+
+.report-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.field-shell select {
+  appearance: none;
+}
+
+.field-shell-textarea {
+  align-items: start;
+}
+
+.field-shell textarea {
+  resize: vertical;
+}
+
+.mini-heading {
+  margin-bottom: 0.75rem;
+}
+
+.inline-error {
+  margin: 1rem 0 0;
+  color: var(--ink-rust);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.loading-card,
+.map-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+.metric-operational {
+  color: var(--ink-teal);
+}
+
+.metric-degraded {
+  color: var(--ink-gold);
+}
+
+.metric-critical {
+  color: var(--ink-rust);
+}
+
+.metric-neutral {
+  color: var(--ink-soft);
+}
+
+.map-canvas {
+  overflow: hidden;
+  min-height: 420px;
+  margin-top: 1rem;
+  border: 1px solid rgba(72, 55, 37, 0.16);
+  border-radius: 1.2rem;
+}
+
+.leaflet-map {
+  height: 420px;
+  width: 100%;
+}
+
+.leaflet-container {
+  background: #f0eadb;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: rgba(255, 250, 241, 0.95);
+  color: var(--ink);
+}
+
+.station-marker-shell {
+  background: transparent;
+  border: 0;
+}
+
+.station-marker {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(63, 52, 40, 0.25);
+}
+
+.station-marker.is-selected {
+  transform: scale(1.18);
+  box-shadow:
+    0 0 0 1px rgba(63, 52, 40, 0.25),
+    0 0 0 6px rgba(255, 250, 239, 0.7);
+}
+
+.station-marker-operational {
+  background: var(--ink-teal);
+}
+
+.station-marker-degraded {
+  background: var(--ink-gold);
+}
+
+.station-marker-critical {
+  background: var(--ink-rust);
 }
 
 .map-paper {
@@ -677,10 +867,7 @@ button {
 }
 
 .map-caption {
-  position: absolute;
-  right: 1rem;
-  bottom: 1rem;
-  max-width: 18rem;
+  margin-top: 0.9rem;
   padding: 0.95rem 1rem;
   border: 1px solid rgba(76, 56, 34, 0.16);
   border-radius: 1rem;
@@ -834,6 +1021,10 @@ button {
   background: rgba(235, 245, 243, 0.88);
 }
 
+.route-ok {
+  border-color: rgba(47, 109, 104, 0.18);
+}
+
 .method-card p:last-child {
   color: var(--ink-soft);
 }
@@ -848,10 +1039,24 @@ button {
   }
 }
 
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 1080px) {
   .hero-panel,
   .board-layout,
   .metrics-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ledger-columns,
+  .report-form-grid {
     grid-template-columns: 1fr;
   }
 

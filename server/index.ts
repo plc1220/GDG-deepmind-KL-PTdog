@@ -5,12 +5,15 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 import {fetchFeedOverview, fetchRealtimeFeed, fetchStaticFeed} from './gtfs';
+import {createReport, getLedgerSnapshot} from './ledger';
 
 const app = express();
 const port = Number(process.env.PORT ?? 4000);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distDir = path.resolve(__dirname, '../dist');
+
+app.use(express.json());
 
 function getFeedQuery(query: express.Request['query']) {
   const feedPath = typeof query.feedPath === 'string' ? query.feedPath : '';
@@ -68,6 +71,29 @@ app.get('/api/health', (_request, response) => {
     service: 'ptdog-backend',
     timestamp: new Date().toISOString(),
   });
+});
+
+app.get('/api/ledger', async (_request, response) => {
+  try {
+    const snapshot = await getLedgerSnapshot();
+    response.json(snapshot);
+  } catch (error) {
+    response.status(500).json({
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+app.post('/api/ledger/reports', async (request, response) => {
+  try {
+    await createReport(request.body);
+    const snapshot = await getLedgerSnapshot();
+    response.status(201).json(snapshot);
+  } catch (error) {
+    response.status(400).json({
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
 });
 
 app.get('/api/gtfs/static', async (request, response) => {
