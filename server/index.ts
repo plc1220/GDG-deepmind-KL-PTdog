@@ -4,6 +4,7 @@ import express from 'express';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
+import {createAssistantReply} from './assistant';
 import {fetchFeedOverview, fetchRealtimeFeed, fetchStaticFeed} from './gtfs';
 import {createReport, getLedgerSnapshot} from './ledger';
 
@@ -89,6 +90,17 @@ app.post('/api/ledger/reports', async (request, response) => {
     await createReport(request.body);
     const snapshot = await getLedgerSnapshot();
     response.status(201).json(snapshot);
+  } catch (error) {
+    response.status(400).json({
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+app.post('/api/assistant/chat', async (request, response) => {
+  try {
+    const payload = await createAssistantReply(request.body);
+    response.json(payload);
   } catch (error) {
     response.status(400).json({
       error: error instanceof Error ? error.message : 'Unknown error',

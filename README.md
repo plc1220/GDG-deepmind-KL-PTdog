@@ -15,6 +15,10 @@ View your app in AI Studio: https://ai.studio/apps/cbfce1fc-7bd1-49d8-837b-e623f
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Authenticate for Vertex AI locally, for example:
+   `gcloud auth application-default login`
+3. Optionally create `.env.local` to override the default Vertex settings:
+   `GOOGLE_CLOUD_PROJECT=my-rd-coe-demo-gen-ai`
+   `GOOGLE_CLOUD_LOCATION=asia-southeast1`
+4. Run the app:
    `npm run dev`

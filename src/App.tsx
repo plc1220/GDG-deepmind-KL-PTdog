@@ -20,6 +20,7 @@ import {motion} from 'motion/react';
 import {divIcon, type LatLngExpression} from 'leaflet';
 import {MapContainer, Marker, Popup, Polyline, TileLayer, useMap} from 'react-leaflet';
 
+import type {AssistantRouteContext} from '../shared/assistant';
 import {
   INFRA_KEYS,
   type InfrastructureKey,
@@ -29,6 +30,7 @@ import {
   type RouteConnection,
   type StationStatus,
 } from '../shared/ledger';
+import AssistantDock from './AssistantDock';
 
 const statusTone = {
   operational: {
@@ -442,6 +444,14 @@ export default function App() {
     snapshot?.stations.filter((station) => station.status !== 'operational').length ?? 0;
   const recommendedRoute = routeResult?.stepFree ?? routeResult?.fastest ?? null;
   const fastestRisky = routeResult ? pathHasRisk(routeResult.fastest, snapshot?.stations ?? []) : false;
+  const assistantRoute: AssistantRouteContext | null =
+    recommendedRoute && snapshot
+      ? {
+          stationIds: recommendedRoute.stationIds,
+          totalMinutes: recommendedRoute.totalMinutes,
+          summary: describeRoute(recommendedRoute, snapshot.stations),
+        }
+      : null;
 
   return (
     <div className="app-shell">
@@ -716,6 +726,14 @@ export default function App() {
           </div>
         </section>
       </main>
+
+      <AssistantDock
+        plannerDestinationId={plannerDestination}
+        plannerOriginId={plannerOrigin}
+        recommendedRoute={assistantRoute}
+        selectedStation={selectedStation}
+        snapshot={snapshot}
+      />
     </div>
   );
 }
