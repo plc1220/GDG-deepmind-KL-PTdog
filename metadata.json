@@ -1,0 +1,5 @@
+{
+  "name": "PTdog: Public Transport Accessibility Watchdog",
+  "description": "Enterprise-grade observability dashboard for transit accessibility, monitoring real-time infrastructure status for inclusive travel.",
+  "requestFramePermissions": []
+}
