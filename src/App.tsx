@@ -1,13 +1,8 @@
 import 'leaflet/dist/leaflet.css';
 
-import React, {
-  startTransition,
-  useDeferredValue,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, {startTransition, useDeferredValue, useEffect, useRef, useState} from 'react';
 import {
+  Accessibility,
   Activity,
   AlertTriangle,
   ArrowRight,
@@ -19,24 +14,16 @@ import {
   MapPin,
   Search,
   ShieldAlert,
-  Sparkles,
-  Stamp,
   TrendingUp,
-  TriangleAlert,
-  Users,
-  Waves,
-  Accessibility,
 } from 'lucide-react';
-import {AnimatePresence, motion} from 'motion/react';
-import {MapContainer, Marker, Popup, Polyline, TileLayer, useMap} from 'react-leaflet';
+import {motion} from 'motion/react';
 import {divIcon, type LatLngExpression} from 'leaflet';
+import {MapContainer, Marker, Popup, Polyline, TileLayer, useMap} from 'react-leaflet';
 
 import {
   INFRA_KEYS,
-  type CreateReportInput,
   type InfrastructureKey,
   type InfrastructureState,
-  type LedgerReport,
   type LedgerSnapshot,
   type LedgerStation,
   type RouteConnection,
@@ -45,23 +32,22 @@ import {
 
 const statusTone = {
   operational: {
-    chip: 'operational',
+    chip: 'clear',
     accent: 'var(--ink-teal)',
     fill: 'var(--wash-sage)',
   },
   degraded: {
-    chip: 'degraded',
+    chip: 'limited',
     accent: 'var(--ink-gold)',
     fill: 'var(--wash-amber)',
   },
   critical: {
-    chip: 'critical',
+    chip: 'avoid',
     accent: 'var(--ink-rust)',
     fill: 'var(--wash-rust)',
   },
 } as const;
 
-const metricIcons = [Waves, TriangleAlert, Users];
 const infraLabels = {
   lifts: Accessibility,
   escalators: Activity,
@@ -70,17 +56,9 @@ const infraLabels = {
 
 const infraStateLabels: Record<InfrastructureState, string> = {
   up: 'clear',
-  degraded: 'degraded',
+  degraded: 'limited',
   down: 'offline',
 };
-
-const reportTypeOptions = [
-  {value: 'alert', label: 'General alert'},
-  {value: 'lift', label: 'Lift'},
-  {value: 'escalator', label: 'Escalator'},
-  {value: 'ramp', label: 'Ramp'},
-  {value: 'crowd', label: 'Crowd'},
-] as const;
 
 type RoutePath = {
   stationIds: string[];
@@ -93,36 +71,18 @@ type RouteResult = {
   stepFree: RoutePath | null;
 };
 
-type ReportFormState = {
-  author: string;
-  message: string;
-  type: CreateReportInput['type'];
-  severity: StationStatus;
-  lifts: '' | InfrastructureState;
-  escalators: '' | InfrastructureState;
-  ramps: '' | InfrastructureState;
-};
-
-const initialReportForm: ReportFormState = {
-  author: '',
-  message: '',
-  type: 'alert',
-  severity: 'degraded',
-  lifts: '',
-  escalators: '',
-  ramps: '',
-};
-
 function formatRelativeTime(timestamp: string) {
   const differenceMs = Date.now() - new Date(timestamp).getTime();
   const minutes = Math.max(1, Math.round(differenceMs / 60_000));
   if (minutes < 60) {
     return `${minutes} min ago`;
   }
+
   const hours = Math.round(minutes / 60);
   if (hours < 24) {
     return `${hours} hr ago`;
   }
+
   const days = Math.round(hours / 24);
   return `${days} day${days === 1 ? '' : 's'} ago`;
 }
@@ -133,6 +93,7 @@ function getStationById(stations: LedgerStation[], stationId: string) {
 
 function buildAdjacency(connections: RouteConnection[]) {
   const adjacency = new Map<string, RouteConnection[]>();
+
   for (const connection of connections) {
     const forward = adjacency.get(connection.from) ?? [];
     forward.push(connection);
@@ -146,6 +107,7 @@ function buildAdjacency(connections: RouteConnection[]) {
     });
     adjacency.set(connection.to, reverse);
   }
+
   return adjacency;
 }
 
@@ -159,6 +121,7 @@ function findRoute(
   if (originId === destinationId) {
     return {
       stationIds: [originId],
+      score: 0,
       totalMinutes: 0,
     };
   }
@@ -170,6 +133,7 @@ function findRoute(
   while (queue.length > 0) {
     queue.sort((left, right) => left.score - right.score);
     const current = queue.shift()!;
+
     if (current.stationId === destinationId) {
       return {
         stationIds: current.path,
@@ -178,8 +142,7 @@ function findRoute(
       };
     }
 
-    const nextConnections = adjacency.get(current.stationId) ?? [];
-    for (const connection of nextConnections) {
+    for (const connection of adjacency.get(current.stationId) ?? []) {
       const station = getStationById(stations, connection.to);
       if (!station) {
         continue;
@@ -197,8 +160,8 @@ function findRoute(
           : station.status === 'critical'
             ? 3
             : station.status === 'degraded'
-            ? 1
-            : 0;
+              ? 1
+              : 0;
       const nextScore = current.score + connection.minutes + penalty;
       const nextMinutes = current.minutes + connection.minutes;
 
@@ -247,6 +210,7 @@ function buildMarkerIcon(status: StationStatus, selected: boolean) {
 
 function StatusSeal({status}: {status: StationStatus}) {
   const tone = statusTone[status];
+
   return (
     <span
       className="status-seal"
@@ -270,6 +234,7 @@ function InfraMark({
   status: InfrastructureState;
 }) {
   const Icon = infraLabels[type];
+
   return (
     <div className={`infra-mark infra-${status}`}>
       <Icon size={14} />
@@ -299,7 +264,7 @@ function MapViewport({
 
     if (selectedStation) {
       map.flyTo([selectedStation.coordinates.lat, selectedStation.coordinates.lng], 13, {
-        duration: 0.65,
+        duration: 0.6,
       });
       return;
     }
@@ -328,7 +293,7 @@ function TransitMap({
 
   return (
     <div className="map-canvas">
-      <MapContainer center={defaultCenter} zoom={12} scrollWheelZoom className="leaflet-map">
+      <MapContainer center={defaultCenter} zoom={12} className="leaflet-map" scrollWheelZoom>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -346,12 +311,12 @@ function TransitMap({
             <Polyline
               key={`${connection.from}-${connection.to}`}
               color={connection.color}
-              opacity={0.85}
+              opacity={0.75}
               positions={[
                 [from.coordinates.lat, from.coordinates.lng],
                 [to.coordinates.lat, to.coordinates.lng],
               ]}
-              weight={5}
+              weight={4}
             />
           );
         })}
@@ -380,31 +345,27 @@ function TransitMap({
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'feed' | 'planner'>('feed');
   const [snapshot, setSnapshot] = useState<LedgerSnapshot | null>(null);
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [submittingReport, setSubmittingReport] = useState(false);
-  const [reportForm, setReportForm] = useState<ReportFormState>(initialReportForm);
   const [plannerOrigin, setPlannerOrigin] = useState('ttdi');
   const [plannerDestination, setPlannerDestination] = useState('klcc');
   const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
   const deferredSearch = useDeferredValue(search);
-  const ledgerRef = useRef<HTMLElement | null>(null);
-  const reportFormRef = useRef<HTMLFormElement | null>(null);
+  const detailsRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadLedger() {
+    async function loadSnapshot() {
       try {
         setError(null);
         const response = await fetch('/api/ledger');
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error ?? 'Unable to load station ledger');
+          throw new Error(payload.error ?? 'Unable to load station status');
         }
         if (cancelled) {
           return;
@@ -431,8 +392,9 @@ export default function App() {
       }
     }
 
-    loadLedger();
-    const timer = window.setInterval(loadLedger, 60_000);
+    loadSnapshot();
+    const timer = window.setInterval(loadSnapshot, 60_000);
+
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -456,6 +418,13 @@ export default function App() {
     });
   }, [plannerDestination, plannerOrigin, snapshot]);
 
+  function focusDetails(stationId?: string) {
+    if (stationId) {
+      setSelectedStationId(stationId);
+    }
+    detailsRef.current?.scrollIntoView({behavior: 'smooth', block: 'start'});
+  }
+
   const filteredStations =
     snapshot?.stations.filter((station) => {
       const query = deferredSearch.trim().toLowerCase();
@@ -468,647 +437,283 @@ export default function App() {
   const selectedStation =
     snapshot?.stations.find((station) => station.id === selectedStationId) ?? filteredStations[0] ?? null;
   const selectedStationReports =
-    snapshot?.reports.filter((report) => report.stationId === selectedStation?.id).slice(0, 4) ?? [];
-
-  async function submitReport(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!selectedStation) {
-      return;
-    }
-
-    setSubmittingReport(true);
-    setError(null);
-
-    try {
-      const payload: CreateReportInput = {
-        stationId: selectedStation.id,
-        author: reportForm.author,
-        message: reportForm.message,
-        type: reportForm.type,
-        severity: reportForm.severity,
-        infrastructure: {
-          ...(reportForm.lifts ? {lifts: reportForm.lifts} : {}),
-          ...(reportForm.escalators ? {escalators: reportForm.escalators} : {}),
-          ...(reportForm.ramps ? {ramps: reportForm.ramps} : {}),
-        },
-      };
-
-      const response = await fetch('/api/ledger/reports', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      const nextSnapshot = await response.json();
-      if (!response.ok) {
-        throw new Error(nextSnapshot.error ?? 'Unable to submit report');
-      }
-
-      startTransition(() => {
-        setSnapshot(nextSnapshot);
-        setSelectedStationId(selectedStation.id);
-        setActiveTab('feed');
-        setReportForm(initialReportForm);
-      });
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Unknown error');
-    } finally {
-      setSubmittingReport(false);
-    }
-  }
-
-  function focusLedger(stationId?: string) {
-    if (stationId) {
-      setSelectedStationId(stationId);
-    }
-    ledgerRef.current?.scrollIntoView({behavior: 'smooth', block: 'start'});
-  }
-
-  function focusReportsForm() {
-    setActiveTab('feed');
-    reportFormRef.current?.scrollIntoView({behavior: 'smooth', block: 'center'});
-    reportFormRef.current?.querySelector('input')?.focus();
-  }
-
-  const dispatchStationId = snapshot?.dispatchNote.stationId ?? null;
-  const dispatchStation = snapshot?.stations.find(
-    (station) => station.id === dispatchStationId,
-  );
-  const recentReports = snapshot?.reports.slice(0, 4) ?? [];
+    snapshot?.reports.filter((report) => report.stationId === selectedStation?.id).slice(0, 3) ?? [];
+  const disruptedCount =
+    snapshot?.stations.filter((station) => station.status !== 'operational').length ?? 0;
+  const recommendedRoute = routeResult?.stepFree ?? routeResult?.fastest ?? null;
   const fastestRisky = routeResult ? pathHasRisk(routeResult.fastest, snapshot?.stations ?? []) : false;
 
   return (
     <div className="app-shell">
-      <div className="paper-noise" aria-hidden="true" />
       <header className="topbar">
         <div className="brand-block">
           <div className="brand-mark">
             <ShieldAlert size={18} />
           </div>
           <div>
-            <p className="eyebrow">Klang Valley mobility ledger</p>
+            <p className="eyebrow">Accessible transit</p>
             <h1>PTdog</h1>
           </div>
         </div>
-        <nav className="topnav" aria-label="Primary">
-          <a href="#ledger">Ledger</a>
-          <a href="#stations">Stations</a>
-          <a href="#station-ledger">Inspector</a>
-          <a href="#planner">Planner</a>
-        </nav>
         <div className="live-chip">
           <span className="live-dot" />
-          live field annotations
+          updates every minute
         </div>
       </header>
 
-      <main className="page-grid">
-        <section className="hero-panel" id="ledger">
+      <main className="page-shell">
+        <section className="hero">
           <motion.div
             animate={{opacity: 1, y: 0}}
             className="hero-copy"
-            initial={{opacity: 0, y: 24}}
-            transition={{duration: 0.5}}
+            initial={{opacity: 0, y: 18}}
+            transition={{duration: 0.45}}
           >
-            <p className="eyebrow">Public transit accessibility watch</p>
-            <h2>A working field ledger for lifts, ramps, and transfer friction in Kuala Lumpur.</h2>
+            <p className="eyebrow">Before you travel</p>
+            <h2>Check which stations are usable right now.</h2>
             <p className="hero-text">
-              Cards now inspect real station details, the ledger accepts persistent reports, and
-              the map is a live spatial view instead of a painted placeholder.
+              PTdog helps riders see lift, escalator, and ramp conditions across key Klang Valley
+              stations without making them read operator-style dashboards.
             </p>
-            <div className="hero-actions">
-              <button
-                className="ink-button ink-button-primary"
-                onClick={() => focusLedger(snapshot?.stations.find((station) => station.status !== 'operational')?.id)}
-                type="button"
-              >
-                Review active obstructions
-              </button>
-              <button className="ink-button" onClick={() => focusLedger(selectedStation?.id ?? undefined)} type="button">
-                Open station ledger
-              </button>
+
+            <div className="hero-summary">
+              <div className="summary-pill">
+                <strong>{snapshot?.stations.length ?? 0}</strong>
+                <span>stations tracked</span>
+              </div>
+              <div className="summary-pill">
+                <strong>{disruptedCount}</strong>
+                <span>need extra care</span>
+              </div>
             </div>
+
             {error ? <p className="inline-error">{error}</p> : null}
           </motion.div>
 
-          <motion.aside
-            animate={{opacity: 1, rotate: -3, x: 0}}
-            className="dispatch-note"
-            initial={{opacity: 0, rotate: -2, x: 18}}
-            transition={{delay: 0.15, duration: 0.6}}
+          <motion.section
+            animate={{opacity: 1, y: 0}}
+            className="planner-card"
+            id="planner"
+            initial={{opacity: 0, y: 18}}
+            transition={{delay: 0.08, duration: 0.45}}
           >
-            <div className="dispatch-tape" />
-            <p className="dispatch-label">Dispatch note</p>
-            <h3>{snapshot?.dispatchNote.title ?? 'Loading current hinge station...'}</h3>
-            <p>{snapshot?.dispatchNote.message ?? 'Pulling the latest station annotations.'}</p>
-            <div className="dispatch-meta">
-              <span>
-                Last sync{' '}
-                {snapshot?.dispatchNote.syncedAt ? formatRelativeTime(snapshot.dispatchNote.syncedAt) : '...'}
-              </span>
-              <span>
-                confidence {snapshot ? snapshot.dispatchNote.confidence.toFixed(2) : '0.00'}
-              </span>
-            </div>
-            {dispatchStation ? <StatusSeal status={dispatchStation.status} /> : null}
-          </motion.aside>
-        </section>
+            <p className="eyebrow">Trip planner</p>
+            <h3>Choose the lower-friction route</h3>
 
-        <section aria-label="Key metrics" className="metrics-row">
-          {(snapshot?.metrics ?? []).map((metric, index) => {
-            const Icon = metricIcons[index] ?? Waves;
-            return (
-              <motion.article
-                animate={{opacity: 1, y: 0}}
-                className="metric-card"
-                initial={{opacity: 0, y: 18}}
-                key={metric.label}
-                transition={{delay: 0.1 + index * 0.08}}
-              >
-                <div className={`metric-icon metric-${metric.tone}`}>
-                  <Icon size={20} />
-                </div>
-                <p className="metric-label">{metric.label}</p>
-                <div className="metric-value-row">
-                  <h3>{metric.value}</h3>
-                  <span>{metric.sub}</span>
-                </div>
-                <p className="metric-detail">{metric.detail}</p>
-              </motion.article>
-            );
-          })}
-          {loading && !snapshot ? (
-            <article className="metric-card loading-card">
-              <LoaderCircle className="spin" size={20} />
-              <p className="metric-detail">Loading ledger snapshot...</p>
-            </article>
-          ) : null}
-        </section>
+            <div className="planner-fields">
+              <label className="field-shell">
+                <MapPin size={15} />
+                <select onChange={(event) => setPlannerOrigin(event.target.value)} value={plannerOrigin}>
+                  {snapshot?.stations.map((station) => (
+                    <option key={station.id} value={station.id}>
+                      {station.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-        <section className="board-layout">
-          <div className="station-column" id="stations">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Annotated station ledger</p>
-                <h3>Field-checked access conditions</h3>
+              <div className="route-arrow">
+                <ArrowRight size={15} />
               </div>
-              <label className="search-frame">
-                <Search size={15} />
-                <input
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Filter station cards"
-                  type="text"
-                  value={search}
-                />
+
+              <label className="field-shell">
+                <Compass size={15} />
+                <select
+                  onChange={(event) => setPlannerDestination(event.target.value)}
+                  value={plannerDestination}
+                >
+                  {snapshot?.stations.map((station) => (
+                    <option key={station.id} value={station.id}>
+                      {station.name}
+                    </option>
+                  ))}
+                </select>
               </label>
             </div>
 
-            <div className="station-grid">
-              {filteredStations.map((station, index) => (
-                <motion.article
-                  animate={{opacity: 1, y: 0}}
-                  className={`station-card station-${station.status}${selectedStation?.id === station.id ? ' station-selected' : ''}`}
-                  initial={{opacity: 0, y: 18}}
-                  key={station.id}
-                  transition={{delay: 0.2 + index * 0.05}}
-                >
-                  <div className="station-card-top">
-                    <div>
-                      <p className="station-line">{station.line}</p>
-                      <h4>{station.name}</h4>
-                      <p className="station-area">{station.area}</p>
+            <div className="route-panel">
+              <p className="route-label">Recommended</p>
+              <div className="route-topline">
+                <h4>{recommendedRoute ? `${recommendedRoute.totalMinutes} min` : 'No route'}</h4>
+                {recommendedRoute ? (
+                  <span className="route-safe">
+                    <CheckCircle2 size={14} />
+                    fewer barriers
+                  </span>
+                ) : null}
+              </div>
+              <p className="route-copy">
+                {recommendedRoute
+                  ? describeRoute(recommendedRoute, snapshot?.stations ?? [])
+                  : 'No monitored path is available for this station pair.'}
+              </p>
+              {routeResult?.fastest && fastestRisky ? (
+                <p className="route-note">
+                  The fastest option is shorter, but it crosses a currently disrupted station.
+                </p>
+              ) : null}
+            </div>
+          </motion.section>
+        </section>
+
+        <section className="content-grid">
+          <motion.section
+            animate={{opacity: 1, y: 0}}
+            className="panel map-panel"
+            initial={{opacity: 0, y: 18}}
+            transition={{delay: 0.12, duration: 0.45}}
+          >
+            <div className="panel-head">
+              <div>
+                <p className="eyebrow">Map</p>
+                <h3>{selectedStation ? selectedStation.name : 'Monitored stations'}</h3>
+              </div>
+              {selectedStation ? <StatusSeal status={selectedStation.status} /> : null}
+            </div>
+
+            {snapshot ? (
+              <>
+                <TransitMap
+                  connections={snapshot.connections}
+                  onSelectStation={focusDetails}
+                  selectedStationId={selectedStation?.id ?? null}
+                  stations={snapshot.stations}
+                />
+                <p className="panel-note">
+                  Tap a station on the map or list to see whether it is clear, limited, or best
+                  avoided.
+                </p>
+              </>
+            ) : (
+              <div className="loading-state">
+                <LoaderCircle className="spin" size={18} />
+                Loading map...
+              </div>
+            )}
+          </motion.section>
+
+          <div className="sidebar">
+            <motion.section
+              animate={{opacity: 1, y: 0}}
+              className="panel"
+              id="stations"
+              initial={{opacity: 0, y: 18}}
+              transition={{delay: 0.16, duration: 0.45}}
+            >
+              <div className="panel-head">
+                <div>
+                  <p className="eyebrow">Stations</p>
+                  <h3>Current access</h3>
+                </div>
+                <label className="search-frame">
+                  <Search size={15} />
+                  <input
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search stations"
+                    type="text"
+                    value={search}
+                  />
+                </label>
+              </div>
+
+              <div className="station-list">
+                {filteredStations.map((station) => (
+                  <article
+                    className={`station-card${selectedStation?.id === station.id ? ' station-selected' : ''}`}
+                    key={station.id}
+                  >
+                    <div className="station-card-top">
+                      <div>
+                        <p className="station-line">{station.line}</p>
+                        <h4>{station.name}</h4>
+                      </div>
+                      <StatusSeal status={station.status} />
                     </div>
-                    <StatusSeal status={station.status} />
+
+                    <p className="station-note">{station.alert ?? station.note}</p>
+
+                    <div className="station-foot">
+                      <span>{formatRelativeTime(station.verifiedAt)}</span>
+                      <button onClick={() => focusDetails(station.id)} type="button">
+                        details
+                        <ChevronRight size={15} />
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </motion.section>
+
+            <motion.section
+              animate={{opacity: 1, y: 0}}
+              className="panel details-panel"
+              id="details"
+              initial={{opacity: 0, y: 18}}
+              ref={detailsRef}
+              transition={{delay: 0.2, duration: 0.45}}
+            >
+              {selectedStation ? (
+                <>
+                  <div className="panel-head">
+                    <div>
+                      <p className="eyebrow">Station details</p>
+                      <h3>{selectedStation.name}</h3>
+                    </div>
+                    <StatusSeal status={selectedStation.status} />
                   </div>
 
-                  {station.alert ? (
-                    <div className="alert-strip">
-                      <AlertTriangle size={16} />
-                      <p>{station.alert}</p>
-                    </div>
-                  ) : null}
+                  <div className="details-meta">
+                    <span>{selectedStation.line}</span>
+                    <span>{selectedStation.area}</span>
+                    <span>checked {formatRelativeTime(selectedStation.verifiedAt)}</span>
+                  </div>
 
-                  <p className="station-note">{station.note}</p>
+                  <p className="details-copy">{selectedStation.alert ?? selectedStation.note}</p>
 
                   <div className="infra-row">
                     {INFRA_KEYS.map((type) => (
                       <React.Fragment key={type}>
-                        <InfraMark status={station.infrastructure[type]} type={type} />
+                        <InfraMark status={selectedStation.infrastructure[type]} type={type} />
                       </React.Fragment>
                     ))}
                   </div>
 
-                  <div className="station-foot">
-                    <span>
-                      verified {formatRelativeTime(station.verifiedAt)} • {station.reportCount} notes
-                    </span>
-                    <button onClick={() => focusLedger(station.id)} type="button">
-                      inspect card
-                      <ChevronRight size={15} />
-                    </button>
-                  </div>
-                </motion.article>
-              ))}
-            </div>
-
-            <section className="station-ledger-panel" id="station-ledger" ref={ledgerRef}>
-              <div className="section-heading compact">
-                <div>
-                  <p className="eyebrow">Inspection ledger</p>
-                  <h3>{selectedStation ? selectedStation.name : 'Select a station'}</h3>
-                </div>
-                {selectedStation ? <StatusSeal status={selectedStation.status} /> : null}
-              </div>
-
-              {selectedStation ? (
-                <>
-                  <div className="station-ledger-topline">
-                    <span>{selectedStation.line}</span>
-                    <span>{selectedStation.area}</span>
-                    <span>{formatRelativeTime(selectedStation.verifiedAt)}</span>
-                  </div>
-                  <p className="station-ledger-copy">{selectedStation.alert ?? selectedStation.note}</p>
-
-                  <div className="ledger-columns">
-                    <div className="ledger-subpanel">
-                      <p className="eyebrow">Current infrastructure</p>
-                      <div className="infra-row">
-                        {INFRA_KEYS.map((type) => (
-                          <React.Fragment key={type}>
-                            <InfraMark status={selectedStation.infrastructure[type]} type={type} />
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="ledger-subpanel">
-                      <div className="section-heading compact mini-heading">
-                        <div>
-                          <p className="eyebrow">Recent notes</p>
-                        </div>
-                      </div>
-                      <div className="ledger-report-stack">
-                        {selectedStationReports.map((report) => (
-                          <article className="ledger-report-card" key={report.id}>
-                            <div className="incident-top">
-                              <div>
-                                <p className="incident-user">{report.author}</p>
-                                <h4>{selectedStation.name}</h4>
-                              </div>
+                  <div className="updates-block">
+                    <p className="eyebrow">Latest updates</p>
+                    <div className="update-list">
+                      {selectedStationReports.length > 0 ? (
+                        selectedStationReports.map((report) => (
+                          <article className="update-card" key={report.id}>
+                            <div className="update-topline">
                               <span>
                                 <Clock3 size={12} />
                                 {formatRelativeTime(report.createdAt)}
                               </span>
                             </div>
-                            <p className="incident-message">{report.message}</p>
+                            <p>{report.message}</p>
                           </article>
-                        ))}
-                        {selectedStationReports.length === 0 ? (
-                          <p className="station-note">No reports yet for this station.</p>
-                        ) : null}
-                      </div>
+                        ))
+                      ) : (
+                        <p className="panel-note">No recent updates for this station.</p>
+                      )}
                     </div>
                   </div>
 
-                  <form className="report-form" onSubmit={submitReport} ref={reportFormRef}>
-                    <div className="section-heading compact mini-heading">
-                      <div>
-                        <p className="eyebrow">Add handwritten report</p>
-                        <h3>Persist a new station note</h3>
-                      </div>
-                      <div className="live-mini">
-                        <span className="live-dot" />
-                        {submittingReport ? 'saving' : 'stored'}
-                      </div>
+                  {recommendedRoute?.stationIds.includes(selectedStation.id) ? (
+                    <div className="route-hint">
+                      <CheckCircle2 size={16} />
+                      <span>This station is part of the current recommended route.</span>
                     </div>
-
-                    <div className="report-form-grid">
-                      <label className="form-field">
-                        <span>Author</span>
-                        <div className="field-shell">
-                          <input
-                            onChange={(event) =>
-                              setReportForm((current) => ({...current, author: event.target.value}))
-                            }
-                            placeholder="Field note 21"
-                            value={reportForm.author}
-                          />
-                        </div>
-                      </label>
-
-                      <label className="form-field">
-                        <span>Type</span>
-                        <div className="field-shell">
-                          <select
-                            onChange={(event) =>
-                              setReportForm((current) => ({
-                                ...current,
-                                type: event.target.value as CreateReportInput['type'],
-                              }))
-                            }
-                            value={reportForm.type}
-                          >
-                            {reportTypeOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </label>
-
-                      <label className="form-field">
-                        <span>Severity</span>
-                        <div className="field-shell">
-                          <select
-                            onChange={(event) =>
-                              setReportForm((current) => ({
-                                ...current,
-                                severity: event.target.value as StationStatus,
-                              }))
-                            }
-                            value={reportForm.severity}
-                          >
-                            <option value="operational">Operational</option>
-                            <option value="degraded">Degraded</option>
-                            <option value="critical">Critical</option>
-                          </select>
-                        </div>
-                      </label>
-
-                      {INFRA_KEYS.map((key) => (
-                        <label className="form-field" key={key}>
-                          <span>{key}</span>
-                          <div className="field-shell">
-                            <select
-                              onChange={(event) =>
-                                setReportForm((current) => ({
-                                  ...current,
-                                  [key]: event.target.value as '' | InfrastructureState,
-                                }))
-                              }
-                              value={reportForm[key]}
-                            >
-                              <option value="">No change</option>
-                              <option value="up">Clear</option>
-                              <option value="degraded">Degraded</option>
-                              <option value="down">Offline</option>
-                            </select>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-
-                    <label className="form-field">
-                      <span>Annotation</span>
-                      <div className="field-shell field-shell-textarea">
-                        <textarea
-                          onChange={(event) =>
-                            setReportForm((current) => ({...current, message: event.target.value}))
-                          }
-                          placeholder="Describe what changed on the ground."
-                          rows={4}
-                          value={reportForm.message}
-                        />
-                      </div>
-                    </label>
-
-                    <div className="hero-actions">
-                      <button className="ink-button ink-button-primary" disabled={submittingReport} type="submit">
-                        {submittingReport ? 'Saving report...' : 'Save report'}
-                      </button>
-                      <button
-                        className="ink-button"
-                        onClick={() => setReportForm(initialReportForm)}
-                        type="button"
-                      >
-                        Reset
-                      </button>
-                    </div>
-                  </form>
+                  ) : null}
                 </>
               ) : (
-                <p className="station-note">Pick a station card to inspect its ledger and add a report.</p>
-              )}
-            </section>
-
-            <article className="map-ledger">
-              <div className="section-heading compact">
-                <div>
-                  <p className="eyebrow">Spatial index</p>
-                  <h3>Live station map</h3>
-                </div>
-                <div className="stamp-chip">
-                  <Stamp size={14} />
-                  leaflet + OSM
-                </div>
-              </div>
-              {snapshot ? (
-                <>
-                  <TransitMap
-                    connections={snapshot.connections}
-                    onSelectStation={(stationId) => focusLedger(stationId)}
-                    selectedStationId={selectedStation?.id ?? null}
-                    stations={snapshot.stations}
-                  />
-                  <div className="map-caption">
-                    Click a marker to inspect that station. Rust nodes mark critical access risk,
-                    amber means degraded circulation, teal remains clear.
-                  </div>
-                </>
-              ) : (
-                <div className="map-placeholder">
-                  <LoaderCircle className="spin" size={18} />
-                  Loading live map...
+                <div className="loading-state">
+                  <AlertTriangle size={18} />
+                  Select a station to view details.
                 </div>
               )}
-            </article>
+            </motion.section>
           </div>
-
-          <aside className="side-column">
-            <section className="tab-panel" id="planner">
-              <div className="tab-switch">
-                <button
-                  data-active={activeTab === 'feed'}
-                  onClick={() => setActiveTab('feed')}
-                  type="button"
-                >
-                  Incident desk
-                </button>
-                <button
-                  data-active={activeTab === 'planner'}
-                  onClick={() => setActiveTab('planner')}
-                  type="button"
-                >
-                  Route desk
-                </button>
-              </div>
-
-              <AnimatePresence mode="wait">
-                {activeTab === 'feed' ? (
-                  <motion.div
-                    animate={{opacity: 1, y: 0}}
-                    className="feed-stack"
-                    exit={{opacity: 0, y: -10}}
-                    initial={{opacity: 0, y: 12}}
-                    key="feed"
-                  >
-                    <div className="section-heading compact">
-                      <div>
-                        <p className="eyebrow">Live notes</p>
-                        <h3>Recent community reports</h3>
-                      </div>
-                      <div className="live-mini">
-                        <span className="live-dot" />
-                        {snapshot ? formatRelativeTime(snapshot.fetchedAt) : 'updating'}
-                      </div>
-                    </div>
-
-                    {recentReports.map((report) => {
-                      const station = snapshot?.stations.find((entry) => entry.id === report.stationId);
-                      return (
-                        <article className="incident-card" key={report.id}>
-                          <div className="incident-top">
-                            <div>
-                              <p className="incident-user">{report.author}</p>
-                              <h4>{station?.name ?? report.stationId}</h4>
-                            </div>
-                            <span>
-                              <Clock3 size={12} />
-                              {formatRelativeTime(report.createdAt)}
-                            </span>
-                          </div>
-                          <p className="incident-message">{report.message}</p>
-                          <div className="incident-actions">
-                            <button onClick={() => focusLedger(report.stationId)} type="button">
-                              inspect
-                            </button>
-                            <button onClick={focusReportsForm} type="button">
-                              annotate
-                            </button>
-                          </div>
-                        </article>
-                      );
-                    })}
-
-                    <button className="report-button" onClick={focusReportsForm} type="button">
-                      <Sparkles size={16} />
-                      Add handwritten report
-                    </button>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    animate={{opacity: 1, y: 0}}
-                    className="planner-stack"
-                    exit={{opacity: 0, y: -10}}
-                    initial={{opacity: 0, y: 12}}
-                    key="planner"
-                  >
-                    <div className="section-heading compact">
-                      <div>
-                        <p className="eyebrow">Accessible planner</p>
-                        <h3>Route with obstruction awareness</h3>
-                      </div>
-                    </div>
-
-                    <label className="form-field">
-                      <span>Origin</span>
-                      <div className="field-shell">
-                        <MapPin size={15} />
-                        <select
-                          onChange={(event) => setPlannerOrigin(event.target.value)}
-                          value={plannerOrigin}
-                        >
-                          {snapshot?.stations.map((station) => (
-                            <option key={station.id} value={station.id}>
-                              {station.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </label>
-
-                    <div className="route-arrow">
-                      <ArrowRight size={15} />
-                    </div>
-
-                    <label className="form-field">
-                      <span>Destination</span>
-                      <div className="field-shell">
-                        <Compass size={15} />
-                        <select
-                          onChange={(event) => setPlannerDestination(event.target.value)}
-                          value={plannerDestination}
-                        >
-                          {snapshot?.stations.map((station) => (
-                            <option key={station.id} value={station.id}>
-                              {station.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </label>
-
-                    <button
-                      className="ink-button ink-button-primary full-width"
-                      onClick={() => {
-                        const route = routeResult?.stepFree ?? routeResult?.fastest;
-                        if (route) {
-                          focusLedger(route.stationIds[0]);
-                        }
-                      }}
-                      type="button"
-                    >
-                      Find step-free path
-                    </button>
-
-                    <article className={`route-card ${fastestRisky ? 'route-rejected' : 'route-ok'}`}>
-                      <p className="route-chip">fastest route</p>
-                      <div className="route-top">
-                        <h4>{routeResult?.fastest ? `${routeResult.fastest.totalMinutes} min` : 'N/A'}</h4>
-                        <span>{fastestRisky ? 'risk flagged' : 'clear'}</span>
-                      </div>
-                      <p>
-                        {routeResult?.fastest
-                          ? `${describeRoute(routeResult.fastest, snapshot?.stations ?? [])}. ${
-                              fastestRisky
-                                ? 'This route still crosses a critical station in the current ledger.'
-                                : 'No critical stations on the fastest monitored path.'
-                            }`
-                          : 'No monitored path available for this station pair.'}
-                      </p>
-                    </article>
-
-                    <article className="route-card route-recommended">
-                      <p className="route-chip">recommended</p>
-                      <div className="route-top">
-                        <h4>{routeResult?.stepFree ? `${routeResult.stepFree.totalMinutes} min` : 'N/A'}</h4>
-                        <span>
-                          <CheckCircle2 size={14} />
-                          step-free bias
-                        </span>
-                      </div>
-                      <p>
-                        {routeResult?.stepFree
-                          ? `${describeRoute(routeResult.stepFree, snapshot?.stations ?? [])}. Built to avoid critical stations and penalize degraded interchanges.`
-                          : 'No safer monitored path is available without crossing a critical station.'}
-                      </p>
-                    </article>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </section>
-
-            <section className="method-card">
-              <p className="eyebrow">Method note</p>
-              <h3>Persistent annotations with optional cloud storage</h3>
-              <p>
-                Reports are written through the backend ledger API. If `PTDOG_GCS_BUCKET` is set,
-                the server writes to Google Cloud Storage and mirrors a local fallback file.
-              </p>
-            </section>
-          </aside>
         </section>
       </main>
     </div>
