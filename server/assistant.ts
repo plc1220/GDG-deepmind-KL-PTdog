@@ -10,7 +10,7 @@ import {getLedgerSnapshot} from './ledger';
 
 const ASSISTANT_MODEL = 'gemini-2.0-flash';
 const VERTEX_PROJECT = process.env.GOOGLE_CLOUD_PROJECT ?? 'my-rd-coe-demo-gen-ai';
-const VERTEX_LOCATION = process.env.GOOGLE_CLOUD_LOCATION ?? 'asia-southeast1';
+const VERTEX_LOCATION = process.env.GOOGLE_CLOUD_LOCATION ?? 'global';
 
 function getAiClient() {
   return new GoogleGenAI({

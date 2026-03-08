@@ -19,6 +19,6 @@ View your app in AI Studio: https://ai.studio/apps/cbfce1fc-7bd1-49d8-837b-e623f
    `gcloud auth application-default login`
 3. Optionally create `.env.local` to override the default Vertex settings:
    `GOOGLE_CLOUD_PROJECT=my-rd-coe-demo-gen-ai`
-   `GOOGLE_CLOUD_LOCATION=asia-southeast1`
+   `GOOGLE_CLOUD_LOCATION=global`
 4. Run the app:
    `npm run dev`
