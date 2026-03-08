@@ -8,7 +8,7 @@ import type {
 import type {InfrastructureState, LedgerSnapshot, LedgerStation} from '../shared/ledger';
 import {getLedgerSnapshot} from './ledger';
 
-const ASSISTANT_MODEL = 'gemini-2.0-flash';
+const ASSISTANT_MODEL = 'gemini-3-flash-preview';
 const VERTEX_PROJECT = process.env.GOOGLE_CLOUD_PROJECT ?? 'my-rd-coe-demo-gen-ai';
 const VERTEX_LOCATION = process.env.GOOGLE_CLOUD_LOCATION ?? 'global';
 
