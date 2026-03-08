@@ -1,11 +1,16 @@
 import 'dotenv/config';
 
 import express from 'express';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 import {fetchFeedOverview, fetchRealtimeFeed, fetchStaticFeed} from './gtfs';
 
 const app = express();
 const port = Number(process.env.PORT ?? 4000);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distDir = path.resolve(__dirname, '../dist');
 
 function getFeedQuery(query: express.Request['query']) {
   const feedPath = typeof query.feedPath === 'string' ? query.feedPath : '';
@@ -106,6 +111,17 @@ app.get('/api/gtfs/overview', async (request, response) => {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
+});
+
+app.use(express.static(distDir));
+
+app.get('*', (request, response, next) => {
+  if (request.path.startsWith('/api/')) {
+    next();
+    return;
+  }
+
+  response.sendFile(path.join(distDir, 'index.html'));
 });
 
 app.listen(port, () => {
